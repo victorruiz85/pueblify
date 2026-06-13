@@ -11,6 +11,7 @@ const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Mi jornada · Tablero", icon: "caso" },
   { href: "/dashboard", label: "Panel de impacto", icon: "impacto" },
   { href: "/casos/nuevo", label: "Nuevo caso", icon: "hogar" },
+  { href: "/empresas", label: "Empresas", icon: "empresa" },
 ];
 
 export function Sidebar({

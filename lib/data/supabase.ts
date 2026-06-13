@@ -18,7 +18,7 @@ import {
   type TareaCaso,
   type Vivienda,
 } from "@/lib/types";
-import type { NuevaTarea, NuevoHogarInput, Repo } from "./repo";
+import type { NuevaEmpresa, NuevaTarea, NuevoHogarInput, Repo } from "./repo";
 
 const HITO_COL: Record<keyof Hitos, string> = {
   viviendaAsignada: "hito_vivienda",
@@ -82,6 +82,7 @@ function rowToMunicipio(m: any): Municipio {
     matriculaEscolar: m.matricula_escolar ?? 0,
     umbralEscolar: m.umbral_escolar ?? 0,
     riesgoDespoblacion: m.riesgo_despoblacion ?? "medio",
+    cp: m.cp ?? undefined,
   };
 }
 
@@ -169,6 +170,7 @@ export class SupabaseRepo implements Repo {
       id: e.id,
       nombre: e.nombre,
       municipioId: e.municipality_id,
+      cp: e.cp ?? undefined,
       sector: e.sector ?? "",
       vacantes: e.vacantes,
       esTractora: e.es_tractora,
@@ -177,6 +179,30 @@ export class SupabaseRepo implements Repo {
   async getEmpresa(id: string): Promise<Empresa | null> {
     const all = await this.getEmpresas();
     return all.find((e) => e.id === id) ?? null;
+  }
+
+  async crearEmpresa(input: NuevaEmpresa): Promise<Empresa> {
+    const { data } = await this.svc
+      .from("companies")
+      .insert({
+        nombre: input.nombre,
+        municipality_id: input.municipioId || null,
+        cp: input.cp || null,
+        sector: input.sector ?? null,
+        vacantes: input.vacantes,
+        es_tractora: input.esTractora,
+      })
+      .select()
+      .single();
+    return {
+      id: data.id,
+      nombre: data.nombre,
+      municipioId: data.municipality_id ?? "",
+      cp: data.cp ?? undefined,
+      sector: data.sector ?? "",
+      vacantes: data.vacantes,
+      esTractora: data.es_tractora,
+    };
   }
 
   async crearHogarYCaso(input: NuevoHogarInput): Promise<Caso> {

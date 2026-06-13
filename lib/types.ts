@@ -137,6 +137,7 @@ export interface Empresa {
   id: string;
   nombre: string;
   municipioId: string;
+  cp?: string; // CP heredado del municipio
   sector: string;
   vacantes: number; // puestos sin cubrir
   esTractora: boolean;
@@ -152,6 +153,7 @@ export interface Municipio {
   matriculaEscolar: number;
   umbralEscolar: number; // mínimo de alumnos para mantener la escuela
   riesgoDespoblacion: "critico" | "alto" | "medio" | "bajo";
+  cp?: string; // código postal (del catálogo)
 }
 
 // Hitos del caso: cada uno guarda la fecha en la que se marca (o null)

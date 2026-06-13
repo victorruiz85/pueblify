@@ -23,7 +23,7 @@ import type {
   TareaCaso,
   Vivienda,
 } from "@/lib/types";
-import type { NuevaTarea, NuevoHogarInput, Repo } from "./repo";
+import type { NuevaEmpresa, NuevaTarea, NuevoHogarInput, Repo } from "./repo";
 
 interface DB {
   casos: Caso[];
@@ -89,6 +89,19 @@ export class MemoryRepo implements Repo {
   }
   async getEmpresa(id: string): Promise<Empresa | null> {
     return db().empresas.find((e) => e.id === id) ?? null;
+  }
+  async crearEmpresa(input: NuevaEmpresa): Promise<Empresa> {
+    const empresa: Empresa = {
+      id: nuevoId("e"),
+      nombre: input.nombre,
+      municipioId: input.municipioId ?? "",
+      cp: input.cp ?? undefined,
+      sector: input.sector ?? "",
+      vacantes: input.vacantes,
+      esTractora: input.esTractora,
+    };
+    db().empresas.push(empresa);
+    return empresa;
   }
 
   async crearHogarYCaso(input: NuevoHogarInput): Promise<Caso> {

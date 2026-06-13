@@ -18,6 +18,15 @@ import type {
 
 export type NuevaTarea = Omit<TareaCaso, "id" | "estado">;
 
+export interface NuevaEmpresa {
+  nombre: string;
+  municipioId?: string | null;
+  cp?: string | null;
+  sector?: string;
+  vacantes: number;
+  esTractora: boolean;
+}
+
 export interface NuevoHogarInput {
   contacto: string;
   email?: string;
@@ -50,6 +59,7 @@ export interface Repo {
   getViviendas(): Promise<Vivienda[]>;
   getEmpresas(): Promise<Empresa[]>;
   getEmpresa(id: string): Promise<Empresa | null>;
+  crearEmpresa(input: NuevaEmpresa): Promise<Empresa>;
 
   // Mutaciones
   crearHogarYCaso(input: NuevoHogarInput): Promise<Caso>;

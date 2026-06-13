@@ -34,6 +34,13 @@ export const nuevoHogarSchema = z.object({
 
 export type NuevoHogarValues = z.infer<typeof nuevoHogarSchema>;
 
+export const empresaSchema = z.object({
+  nombre: z.string().min(2, "Indica el nombre de la empresa"),
+  municipioId: z.string().optional(),
+  sector: z.string().optional(),
+  vacantes: z.coerce.number().int().min(0).default(0),
+});
+
 export const empadronamientoSchema = z.object({
   casoId: z.string(),
   personas: z.coerce.number().int().min(1, "Indica el número de personas"),

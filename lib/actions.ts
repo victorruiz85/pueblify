@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getRepo } from "./data";
 import { getSession } from "./auth";
 import type { CategoriaSenal, EstadoCaso, EstadoSenal, Hitos, TareaPrioridad, TareaTipo } from "./types";
-import { empadronamientoSchema, nuevoHogarSchema } from "./validators";
+import { empadronamientoSchema, empresaSchema, nuevoHogarSchema } from "./validators";
 
 function revalidar(id?: string) {
   revalidatePath("/");
@@ -91,6 +91,27 @@ export async function empadronarAction(_prev: unknown, formData: FormData) {
 export async function darDeBajaAction(id: string, motivo: string) {
   await getRepo().darDeBaja(id, motivo);
   revalidar(id);
+}
+
+export async function crearEmpresaAction(_prev: unknown, formData: FormData) {
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = empresaSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false as const, errores: parsed.error.flatten().fieldErrors };
+  }
+  const v = parsed.data;
+  const esTractora = raw.esTractora === "true" || raw.esTractora === "on";
+  await getRepo().crearEmpresa({
+    nombre: v.nombre,
+    municipioId: v.municipioId || null,
+    cp: typeof raw.cp === "string" && raw.cp ? raw.cp : null,
+    sector: v.sector,
+    vacantes: v.vacantes,
+    esTractora,
+  });
+  revalidatePath("/empresas");
+  revalidatePath("/casos/nuevo");
+  redirect("/empresas");
 }
 
 export async function agregarTareaAction(

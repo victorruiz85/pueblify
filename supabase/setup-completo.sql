@@ -1,10 +1,12 @@
 -- ============================================================
--- Pueblify · TODO EN UNO. Pega este archivo en Supabase → SQL Editor → Run.
--- Crea todas las tablas, seguridad (RLS) y datos de ejemplo de una vez.
+--  Pueblify · Script de instalación completo (todo en uno)
+--  Pega y ejecuta en el SQL Editor de Supabase (orden correcto).
 -- ============================================================
 
 
+-- ============================================================
 -- ===== migrations/0001_schema.sql =====
+-- ============================================================
 
 -- ============================================================
 --  Pueblify · Esquema de producción (v1.2)
@@ -162,7 +164,9 @@ create table retention_checkpoints (
   unique (relocation_id, ventana)
 );
 
+-- ============================================================
 -- ===== migrations/0002_indices_rls.sql =====
+-- ============================================================
 
 -- ============================================================
 --  Pueblify · Índices, vistas, funciones, RLS  (v1.2)
@@ -331,7 +335,9 @@ create policy retention_access on retention_checkpoints for all using (
   is_admin() or exists (select 1 from relocations r where r.id = relocation_id and r.agent_id = auth.uid())
 );
 
+-- ============================================================
 -- ===== migrations/0003_ref_municipios.sql =====
+-- ============================================================
 
 -- ============================================================
 --  Pueblify · Catálogo oficial de municipios (referencia)
@@ -369,7 +375,9 @@ alter table ref_codigos_postales enable row level security;
 create policy ref_muni_read on ref_municipios       for select using (true);
 create policy ref_cp_read   on ref_codigos_postales for select using (true);
 
+-- ============================================================
 -- ===== migrations/0004_poblacion_centros.sql =====
+-- ============================================================
 
 -- ============================================================
 --  Pueblify · Población oficial (INE) y centros educativos
@@ -405,7 +413,9 @@ group by m.ine_code, m.nombre;
 alter table ref_centros enable row level security;
 create policy ref_centros_read on ref_centros for select using (true);
 
+-- ============================================================
 -- ===== migrations/0005_consentimiento.sql =====
+-- ============================================================
 
 -- ============================================================
 --  Pueblify · RGPD — registro del consentimiento informado
@@ -416,7 +426,21 @@ create policy ref_centros_read on ref_centros for select using (true);
 alter table households add column if not exists consent_at      timestamptz;
 alter table households add column if not exists consent_version text;
 
+-- ============================================================
+-- ===== migrations/0006_companies_cp.sql =====
+-- ============================================================
+
+-- ============================================================
+--  Pueblify · CP de la empresa (heredado del municipio)
+--  La empresa toma el código postal de su municipio (se elige en un
+--  desplegable y el CP se autocompleta).
+-- ============================================================
+
+alter table companies add column if not exists cp text;
+
+-- ============================================================
 -- ===== seed.sql =====
+-- ============================================================
 
 -- ============================================================
 --  Pueblify · Datos de ejemplo (piloto comarca de Sangüesa)
@@ -424,24 +448,24 @@ alter table households add column if not exists consent_version text;
 --  Hogares y casos se crean desde la app una vez autenticado el técnico.
 -- ============================================================
 
-insert into municipalities (slug, nombre, provincia, poblacion_base, objetivo_nuevos, matricula_escolar, umbral_escolar, riesgo_despoblacion)
+insert into municipalities (slug, nombre, provincia, poblacion_base, objetivo_nuevos, matricula_escolar, umbral_escolar, riesgo_despoblacion, cp)
 values
-  ('sanguesa', 'Sangüesa', 'Navarra', 5040, 60, 182, 150, 'medio'),
-  ('lumbier',  'Lumbier',  'Navarra', 1410, 30,  96, 105, 'alto'),
-  ('aibar',    'Aibar',    'Navarra',  790, 18,  41,  45, 'critico');
+  ('sanguesa', 'Sangüesa', 'Navarra', 5040, 60, 182, 150, 'medio',   '31400'),
+  ('lumbier',  'Lumbier',  'Navarra', 1410, 30,  96, 105, 'alto',    '31440'),
+  ('aibar',    'Aibar',    'Navarra',  790, 18,  41,  45, 'critico', '31479');
 
-insert into companies (municipality_id, nombre, sector, vacantes, es_tractora)
-select id, 'Conservas del Pirineo', 'Agroalimentario', 18, true  from municipalities where slug='sanguesa'
+insert into companies (municipality_id, nombre, sector, vacantes, es_tractora, cp)
+select id, 'Conservas del Pirineo', 'Agroalimentario', 18, true,  cp from municipalities where slug='sanguesa'
 union all
-select id, 'Aserradero de Lumbier',  'Madera',          6, false from municipalities where slug='lumbier'
+select id, 'Aserradero de Lumbier',  'Madera',          6, false, cp from municipalities where slug='lumbier'
 union all
-select id, 'Residencia Santa Eufemia','Sociosanitario', 4, false from municipalities where slug='aibar';
+select id, 'Residencia Santa Eufemia','Sociosanitario', 4, false, cp from municipalities where slug='aibar';
 
 insert into properties (municipality_id, titulo, tipo, plazas, precio, estado, admite_mascotas)
-select id, 'Piso reformado centro', 'piso', 4, 480, 'publicada', true from municipalities where slug='sanguesa'
+select id, 'Piso reformado centro', 'piso'::tipo_vivienda, 4, 480, 'publicada'::estado_vivienda, true from municipalities where slug='sanguesa'
 union all
-select id, 'Casa con patio', 'casa', 5, 600, 'publicada', true from municipalities where slug='sanguesa'
+select id, 'Casa con patio', 'casa'::tipo_vivienda, 5, 600, 'publicada'::estado_vivienda, true from municipalities where slug='sanguesa'
 union all
-select id, 'Casa de pueblo rehabilitada', 'casa', 5, 520, 'publicada', true from municipalities where slug='lumbier'
+select id, 'Casa de pueblo rehabilitada', 'casa'::tipo_vivienda, 5, 520, 'publicada'::estado_vivienda, true from municipalities where slug='lumbier'
 union all
-select id, 'Casa con huerto', 'casa', 4, 380, 'publicada', true from municipalities where slug='aibar';
+select id, 'Casa con huerto', 'casa'::tipo_vivienda, 4, 380, 'publicada'::estado_vivienda, true from municipalities where slug='aibar';
