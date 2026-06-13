@@ -1,0 +1,227 @@
+// Implementación EN MEMORIA del repositorio (por defecto, para demo/desarrollo).
+// Sembrada con el piloto (lib/seed.ts). Singleton persistente entre recargas (HMR).
+
+import {
+  casos as seedCasos,
+  empresas as seedEmpresas,
+  hogares as seedHogares,
+  municipios as seedMunicipios,
+  tecnicos as seedTecnicos,
+  viviendas as seedViviendas,
+} from "@/lib/seed";
+import { conEstadoDerivado, puedeMoverManual } from "@/lib/transitions";
+import type {
+  Caso,
+  CategoriaSenal,
+  Empresa,
+  EstadoCaso,
+  EstadoSenal,
+  Hitos,
+  Hogar,
+  Municipio,
+  Padron,
+  TareaCaso,
+  Vivienda,
+} from "@/lib/types";
+import type { NuevaTarea, NuevoHogarInput, Repo } from "./repo";
+
+interface DB {
+  casos: Caso[];
+  hogares: Hogar[];
+  municipios: Municipio[];
+  empresas: Empresa[];
+  viviendas: Vivienda[];
+  tecnicos: typeof seedTecnicos;
+}
+
+const g = globalThis as unknown as { __pueblifyDB?: DB };
+
+function db(): DB {
+  if (!g.__pueblifyDB) {
+    g.__pueblifyDB = {
+      casos: structuredClone(seedCasos),
+      hogares: structuredClone(seedHogares),
+      municipios: structuredClone(seedMunicipios),
+      empresas: structuredClone(seedEmpresas),
+      viviendas: structuredClone(seedViviendas),
+      tecnicos: structuredClone(seedTecnicos),
+    };
+  }
+  return g.__pueblifyDB;
+}
+
+const ahora = () => new Date().toISOString();
+const nuevoId = (p: string) => `${p}_${Math.random().toString(36).slice(2, 9)}`;
+const HABILITADORES: (keyof Hitos)[] = [
+  "viviendaAsignada",
+  "empleoResuelto",
+  "empleoPareja",
+  "menoresMatriculados",
+  "mudanza",
+];
+
+function find(id: string): Caso | undefined {
+  return db().casos.find((c) => c.id === id);
+}
+
+export class MemoryRepo implements Repo {
+  async getCasos(): Promise<Caso[]> {
+    return db().casos.map(conEstadoDerivado);
+  }
+  async getCaso(id: string): Promise<Caso | null> {
+    const c = find(id);
+    return c ? conEstadoDerivado(c) : null;
+  }
+  async getHogar(id: string): Promise<Hogar | null> {
+    return db().hogares.find((h) => h.id === id) ?? null;
+  }
+  async getMunicipios(): Promise<Municipio[]> {
+    return db().municipios;
+  }
+  async getMunicipio(id: string): Promise<Municipio | null> {
+    return db().municipios.find((m) => m.id === id) ?? null;
+  }
+  async getViviendas(): Promise<Vivienda[]> {
+    return db().viviendas;
+  }
+  async getEmpresas(): Promise<Empresa[]> {
+    return db().empresas;
+  }
+  async getEmpresa(id: string): Promise<Empresa | null> {
+    return db().empresas.find((e) => e.id === id) ?? null;
+  }
+
+  async crearHogarYCaso(input: NuevoHogarInput): Promise<Caso> {
+    const data = db();
+    const hogarId = nuevoId("h");
+    const miembros: Hogar["miembros"] = [];
+    for (let i = 0; i < input.numAdultos; i++) {
+      miembros.push({ id: nuevoId("m"), tipo: "adulto", situacion: i === 0 ? "busca_empleo" : "no_aplica" });
+    }
+    for (let i = 0; i < input.numMenores; i++) {
+      miembros.push({ id: nuevoId("m"), tipo: "menor", situacion: "estudia", etapaEscolar: "primaria" });
+    }
+    data.hogares.push({
+      id: hogarId,
+      contacto: input.contacto,
+      email: input.email,
+      telefono: input.telefono,
+      tamano: input.tamano,
+      origen: input.origen,
+      origenRegion: input.origenRegion,
+      vinculosPrevios: input.vinculosPrevios,
+      miembros,
+      senales: input.senales,
+      consentAt: input.consentAt ?? undefined,
+      consentVersion: input.consentVersion ?? undefined,
+      creadoAt: ahora(),
+    });
+    const caso: Caso = {
+      id: nuevoId("c"),
+      hogarId,
+      municipioDestinoId: input.municipioDestinoId,
+      viviendaId: null,
+      empresaId: input.empresaId ?? null,
+      tecnicoId: input.actorProfileId ?? data.tecnicos[0]?.id ?? null,
+      estado: "interesado",
+      canal: input.canal,
+      hitos: {
+        viviendaAsignada: null,
+        empleoResuelto: null,
+        empleoPareja: null,
+        menoresMatriculados: null,
+        mudanza: null,
+        empadronado: null,
+      },
+      proximoHito: "Llamada de bienvenida",
+      retencion: [],
+      tareas: [],
+      creadoAt: ahora(),
+      actualizadoAt: ahora(),
+    };
+    data.casos.push(caso);
+    return conEstadoDerivado(caso);
+  }
+
+  async moverCaso(id: string, estado: EstadoCaso): Promise<void> {
+    // Solo se permiten movimientos manuales entre interesado/acompañamiento.
+    // "instalado"/"asentado" se derivan del empadronamiento; no se fijan a mano.
+    if (!puedeMoverManual(estado)) return;
+    const c = find(id);
+    if (!c || c.estado === "baja") return;
+    c.estado = estado;
+    c.actualizadoAt = ahora();
+  }
+
+  async alternarHito(id: string, hito: keyof Hitos): Promise<void> {
+    const c = find(id);
+    if (!c || c.estado === "baja") return;
+    c.hitos[hito] = c.hitos[hito] ? null : ahora();
+    if (c.estado === "interesado" && HABILITADORES.some((h) => c.hitos[h])) {
+      c.estado = "acompanamiento";
+    }
+    c.actualizadoAt = ahora();
+  }
+
+  async registrarEmpadronamiento(id: string, padron: Padron): Promise<void> {
+    const c = find(id);
+    if (!c) return;
+    c.padron = padron;
+    c.hitos.empadronado = padron.fecha;
+    if (!c.hitos.mudanza) c.hitos.mudanza = padron.fecha;
+    c.estado = "instalado"; // la derivación lo elevará a "asentado" a los 12 meses
+    c.actualizadoAt = ahora();
+  }
+
+  async actualizarSenal(hogarId: string, categoria: CategoriaSenal, estado: EstadoSenal): Promise<void> {
+    const h = db().hogares.find((x) => x.id === hogarId);
+    if (h) h.senales[categoria] = estado;
+  }
+
+  async asignarVivienda(id: string, viviendaId: string | null): Promise<void> {
+    const c = find(id);
+    if (!c) return;
+    c.viviendaId = viviendaId;
+    c.hitos.viviendaAsignada = viviendaId ? ahora() : null;
+    if (c.estado === "interesado" && viviendaId) c.estado = "acompanamiento";
+    c.actualizadoAt = ahora();
+  }
+
+  async darDeBaja(id: string, motivo: string): Promise<void> {
+    const c = find(id);
+    if (!c) return;
+    c.estado = "baja";
+    c.motivoBaja = motivo as Caso["motivoBaja"];
+    c.actualizadoAt = ahora();
+  }
+
+  async agregarTarea(id: string, tarea: NuevaTarea): Promise<void> {
+    const c = find(id);
+    if (!c) return;
+    const nueva: TareaCaso = { ...tarea, id: nuevoId("k"), estado: "pendiente" };
+    c.tareas = [...(c.tareas ?? []), nueva];
+    c.actualizadoAt = ahora();
+  }
+
+  async completarTarea(id: string, tareaId: string): Promise<void> {
+    const c = find(id);
+    if (!c) return;
+    c.tareas = (c.tareas ?? []).map((t) => (t.id === tareaId ? { ...t, estado: "completada" } : t));
+    c.actualizadoAt = ahora();
+  }
+
+  async actualizarNota(id: string, nota: string): Promise<void> {
+    const c = find(id);
+    if (!c) return;
+    c.nota = nota;
+    c.actualizadoAt = ahora();
+  }
+
+  async fijarProximoPaso(id: string, texto: string, fecha?: string): Promise<void> {
+    const c = find(id);
+    if (!c) return;
+    c.proximoHito = texto;
+    c.proximoHitoFecha = fecha;
+    c.actualizadoAt = ahora();
+  }
+}

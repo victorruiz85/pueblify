@@ -1,0 +1,321 @@
+// Adaptador de Supabase del repositorio. Mapea las filas SQL (ver supabase/migrations)
+// al modelo de dominio y viceversa. Se activa automáticamente cuando hay variables de
+// entorno de Supabase. La UI y las Server Actions no cambian.
+
+import { supabaseAnon, supabaseService } from "@/lib/supabase/server";
+import { conEstadoDerivado, puedeMoverManual } from "@/lib/transitions";
+import {
+  type CategoriaSenal,
+  type Empresa,
+  type EstadoCaso,
+  type EstadoSenal,
+  type Hitos,
+  type Hogar,
+  type Municipio,
+  type Padron,
+  type Senales,
+  type Caso,
+  type TareaCaso,
+  type Vivienda,
+} from "@/lib/types";
+import type { NuevaTarea, NuevoHogarInput, Repo } from "./repo";
+
+const HITO_COL: Record<keyof Hitos, string> = {
+  viviendaAsignada: "hito_vivienda",
+  empleoResuelto: "hito_empleo",
+  empleoPareja: "hito_empleo_pareja",
+  menoresMatriculados: "hito_menores",
+  mudanza: "hito_mudanza",
+  empadronado: "hito_empadronado",
+};
+
+const CATEGORIAS: CategoriaSenal[] = [
+  "empleo_pareja",
+  "escolarizacion",
+  "transporte",
+  "teletrabajo",
+  "dependencia",
+  "conciliacion",
+  "integracion_social",
+];
+
+function rowToCaso(r: any, padron?: any): Caso {
+  return {
+    id: r.id,
+    hogarId: r.household_id,
+    municipioDestinoId: r.municipality_id ?? null,
+    viviendaId: r.property_id ?? null,
+    empresaId: r.company_id ?? null,
+    tecnicoId: r.agent_id ?? null,
+    estado: r.estado as EstadoCaso,
+    canal: r.canal,
+    hitos: {
+      viviendaAsignada: r.hito_vivienda ?? null,
+      empleoResuelto: r.hito_empleo ?? null,
+      empleoPareja: r.hito_empleo_pareja ?? null,
+      menoresMatriculados: r.hito_menores ?? null,
+      mudanza: r.hito_mudanza ?? null,
+      empadronado: r.hito_empadronado ?? null,
+    },
+    proximoHito: r.proximo_hito ?? undefined,
+    proximoHitoFecha: r.proximo_hito_fecha ?? undefined,
+    nota: r.nota ?? undefined,
+    padron: padron
+      ? { personas: padron.personas, menores: padron.menores, fecha: padron.fecha, fuente: padron.fuente ?? undefined }
+      : undefined,
+    retencion: [],
+    tareas: Array.isArray(r.tareas) ? r.tareas : [],
+    motivoBaja: r.motivo_baja ?? undefined,
+    creadoAt: r.created_at,
+    actualizadoAt: r.updated_at,
+  };
+}
+
+function rowToMunicipio(m: any): Municipio {
+  return {
+    id: m.id,
+    slug: m.slug,
+    nombre: m.nombre,
+    provincia: m.provincia,
+    poblacionBase: m.poblacion_base ?? 0,
+    objetivoNuevos: m.objetivo_nuevos ?? 0,
+    matriculaEscolar: m.matricula_escolar ?? 0,
+    umbralEscolar: m.umbral_escolar ?? 0,
+    riesgoDespoblacion: m.riesgo_despoblacion ?? "medio",
+  };
+}
+
+export class SupabaseRepo implements Repo {
+  // service role: datos operativos/personales y todas las escrituras (omite RLS).
+  private svc = supabaseService();
+  // anon (RLS): solo catálogo público (municipios, empresas).
+  private pub = supabaseAnon();
+
+  async getCasos(): Promise<Caso[]> {
+    const { data: rels } = await this.svc.from("relocations").select("*");
+    const { data: padrones } = await this.svc.from("padron_records").select("*");
+    const pMap = new Map((padrones ?? []).map((p: any) => [p.relocation_id, p]));
+    return (rels ?? []).map((r: any) => conEstadoDerivado(rowToCaso(r, pMap.get(r.id))));
+  }
+
+  async getCaso(id: string): Promise<Caso | null> {
+    const { data: r } = await this.svc.from("relocations").select("*").eq("id", id).maybeSingle();
+    if (!r) return null;
+    const { data: p } = await this.svc.from("padron_records").select("*").eq("relocation_id", id).maybeSingle();
+    return conEstadoDerivado(rowToCaso(r, p ?? undefined));
+  }
+
+  async getHogar(id: string): Promise<Hogar | null> {
+    const { data: h } = await this.svc.from("households").select("*").eq("id", id).maybeSingle();
+    if (!h) return null;
+    const { data: miembros } = await this.svc.from("household_members").select("*").eq("household_id", id);
+    const { data: signals } = await this.svc.from("arraigo_signals").select("*").eq("household_id", id);
+    const senales = CATEGORIAS.reduce((acc, cat) => {
+      acc[cat] = "no_aplica";
+      return acc;
+    }, {} as Senales);
+    (signals ?? []).forEach((s: any) => {
+      senales[s.categoria as CategoriaSenal] = s.estado as EstadoSenal;
+    });
+    return {
+      id: h.id,
+      contacto: h.contacto,
+      email: h.email ?? undefined,
+      telefono: h.telefono ?? undefined,
+      tamano: h.tamano,
+      origen: h.origen,
+      origenRegion: h.origen_region ?? undefined,
+      vinculosPrevios: h.vinculos_previos,
+      miembros: (miembros ?? []).map((m: any) => ({
+        id: m.id,
+        tipo: m.tipo,
+        edad: m.edad ?? undefined,
+        situacion: m.situacion,
+        etapaEscolar: m.etapa_escolar ?? undefined,
+      })),
+      senales,
+      consentAt: h.consent_at ?? undefined,
+      consentVersion: h.consent_version ?? undefined,
+      creadoAt: h.created_at,
+    };
+  }
+
+  async getMunicipios(): Promise<Municipio[]> {
+    const { data } = await this.pub.from("municipalities").select("*").order("nombre");
+    return (data ?? []).map(rowToMunicipio);
+  }
+  async getMunicipio(id: string): Promise<Municipio | null> {
+    const { data } = await this.pub.from("municipalities").select("*").eq("id", id).maybeSingle();
+    return data ? rowToMunicipio(data) : null;
+  }
+
+  async getViviendas(): Promise<Vivienda[]> {
+    const { data } = await this.svc.from("properties").select("*");
+    return (data ?? []).map((v: any) => ({
+      id: v.id,
+      municipioId: v.municipality_id,
+      titulo: v.titulo,
+      tipo: v.tipo,
+      plazas: v.plazas,
+      precio: Number(v.precio),
+      estado: v.estado,
+      admiteMascotas: v.admite_mascotas,
+    }));
+  }
+
+  async getEmpresas(): Promise<Empresa[]> {
+    const { data } = await this.pub.from("companies").select("*");
+    return (data ?? []).map((e: any) => ({
+      id: e.id,
+      nombre: e.nombre,
+      municipioId: e.municipality_id,
+      sector: e.sector ?? "",
+      vacantes: e.vacantes,
+      esTractora: e.es_tractora,
+    }));
+  }
+  async getEmpresa(id: string): Promise<Empresa | null> {
+    const all = await this.getEmpresas();
+    return all.find((e) => e.id === id) ?? null;
+  }
+
+  async crearHogarYCaso(input: NuevoHogarInput): Promise<Caso> {
+    const { data: h } = await this.svc
+      .from("households")
+      .insert({
+        lead_profile_id: input.actorProfileId ?? null,
+        contacto: input.contacto,
+        email: input.email,
+        telefono: input.telefono,
+        tamano: input.tamano,
+        origen: input.origen,
+        origen_region: input.origenRegion,
+        vinculos_previos: input.vinculosPrevios,
+        consent_at: input.consentAt ?? null,
+        consent_version: input.consentVersion ?? null,
+      })
+      .select()
+      .single();
+
+    const miembros: any[] = [];
+    for (let i = 0; i < input.numAdultos; i++)
+      miembros.push({ household_id: h.id, tipo: "adulto", situacion: i === 0 ? "busca_empleo" : "no_aplica" });
+    for (let i = 0; i < input.numMenores; i++)
+      miembros.push({ household_id: h.id, tipo: "menor", situacion: "estudia", etapa_escolar: "primaria" });
+    if (miembros.length) await this.svc.from("household_members").insert(miembros);
+
+    await this.svc.from("arraigo_signals").insert(
+      CATEGORIAS.map((cat) => ({ household_id: h.id, categoria: cat, estado: input.senales[cat] })),
+    );
+
+    const { data: r } = await this.svc
+      .from("relocations")
+      .insert({
+        household_id: h.id,
+        municipality_id: input.municipioDestinoId,
+        company_id: input.empresaId ?? null,
+        // agent_id desde el usuario autenticado (el técnico que tutela el caso).
+        agent_id: input.actorProfileId ?? null,
+        estado: "interesado",
+        canal: input.canal,
+        proximo_hito: "Llamada de bienvenida",
+      })
+      .select()
+      .single();
+    return conEstadoDerivado(rowToCaso(r));
+  }
+
+  async moverCaso(id: string, estado: EstadoCaso): Promise<void> {
+    if (!puedeMoverManual(estado)) return;
+    await this.svc.from("relocations").update({ estado, updated_at: new Date().toISOString() }).eq("id", id);
+  }
+
+  async alternarHito(id: string, hito: keyof Hitos): Promise<void> {
+    const { data: r } = await this.svc.from("relocations").select("*").eq("id", id).maybeSingle();
+    if (!r) return;
+    const col = HITO_COL[hito];
+    const nuevo = r[col] ? null : new Date().toISOString();
+    const patch: Record<string, unknown> = { [col]: nuevo, updated_at: new Date().toISOString() };
+    if (r.estado === "interesado" && nuevo) patch.estado = "acompanamiento";
+    await this.svc.from("relocations").update(patch).eq("id", id);
+  }
+
+  async registrarEmpadronamiento(id: string, padron: Padron): Promise<void> {
+    const { data: r } = await this.svc.from("relocations").select("*").eq("id", id).maybeSingle();
+    // unique(relocation_id): un solo padrón por caso → upsert idempotente.
+    await this.svc.from("padron_records").upsert(
+      {
+        relocation_id: id,
+        municipality_id: r?.municipality_id ?? null,
+        personas: padron.personas,
+        menores: padron.menores,
+        fecha: padron.fecha,
+        fuente: padron.fuente,
+      },
+      { onConflict: "relocation_id" },
+    );
+    await this.svc
+      .from("relocations")
+      .update({
+        hito_empadronado: padron.fecha,
+        hito_mudanza: r?.hito_mudanza ?? padron.fecha,
+        estado: "instalado",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+  }
+
+  async actualizarSenal(hogarId: string, categoria: CategoriaSenal, estado: EstadoSenal): Promise<void> {
+    await this.svc.from("arraigo_signals").upsert({ household_id: hogarId, categoria, estado });
+  }
+
+  async asignarVivienda(id: string, viviendaId: string | null): Promise<void> {
+    await this.svc
+      .from("relocations")
+      .update({
+        property_id: viviendaId,
+        hito_vivienda: viviendaId ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+  }
+
+  async darDeBaja(id: string, motivo: string): Promise<void> {
+    await this.svc
+      .from("relocations")
+      .update({ estado: "baja", motivo_baja: motivo, updated_at: new Date().toISOString() })
+      .eq("id", id);
+  }
+
+  // Las tareas viven en la columna jsonb `tareas` de relocations (no es tabla aparte).
+  private async tareasDe(id: string): Promise<TareaCaso[]> {
+    const { data } = await this.svc.from("relocations").select("tareas").eq("id", id).maybeSingle();
+    return Array.isArray(data?.tareas) ? (data!.tareas as TareaCaso[]) : [];
+  }
+
+  async agregarTarea(id: string, tarea: NuevaTarea): Promise<void> {
+    const actuales = await this.tareasDe(id);
+    const nueva: TareaCaso = { ...tarea, id: `k_${Math.random().toString(36).slice(2, 9)}`, estado: "pendiente" };
+    await this.svc
+      .from("relocations")
+      .update({ tareas: [...actuales, nueva], updated_at: new Date().toISOString() })
+      .eq("id", id);
+  }
+
+  async completarTarea(id: string, tareaId: string): Promise<void> {
+    const actuales = await this.tareasDe(id);
+    const tareas = actuales.map((t) => (t.id === tareaId ? { ...t, estado: "completada" as const } : t));
+    await this.svc.from("relocations").update({ tareas, updated_at: new Date().toISOString() }).eq("id", id);
+  }
+
+  async actualizarNota(id: string, nota: string): Promise<void> {
+    await this.svc.from("relocations").update({ nota, updated_at: new Date().toISOString() }).eq("id", id);
+  }
+
+  async fijarProximoPaso(id: string, texto: string, fecha?: string): Promise<void> {
+    await this.svc
+      .from("relocations")
+      .update({ proximo_hito: texto, proximo_hito_fecha: fecha ?? null, updated_at: new Date().toISOString() })
+      .eq("id", id);
+  }
+}

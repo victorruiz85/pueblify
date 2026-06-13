@@ -1,0 +1,42 @@
+# Configuración de Supabase CLI para Pueblify.
+# Se puede regenerar con `supabase init`. project_id es solo una etiqueta local;
+# el proyecto remoto se vincula con `supabase link --project-ref <REF>`.
+
+project_id = "pueblify"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+# Seed que se aplica con `supabase db reset` (local) y con `supabase db push --include-seed`.
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+# Ajusta a tu dominio en producción.
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
