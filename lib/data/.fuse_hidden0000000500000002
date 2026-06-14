@@ -92,7 +92,7 @@ function slugify(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 }
@@ -159,54 +159,6 @@ export class SupabaseRepo implements Repo {
   async getMunicipio(id: string): Promise<Municipio | null> {
     const { data } = await this.pub.from("municipalities").select("*").eq("id", id).maybeSingle();
     return data ? rowToMunicipio(data) : null;
-  }
-
-  async getMunicipiosOficiales(): Promise<MunicipioOficial[]> {
-    const { data } = await this.pub
-      .from("ref_municipios")
-      .select("ine_code, nombre, provincia, cp_principal")
-      .eq("provincia", "Navarra")
-      .order("nombre");
-    return (data ?? []).map((m: any) => ({
-      ineCode: m.ine_code,
-      nombre: m.nombre,
-      provincia: m.provincia,
-      cp: m.cp_principal ?? "",
-    }));
-  }
-
-  async asegurarMunicipioPorIne(ineCode: string): Promise<Municipio> {
-    // ¿Ya está activado en la lista operativa?
-    const { data: existente } = await this.svc
-      .from("municipalities")
-      .select("*")
-      .eq("ine_code", ineCode)
-      .maybeSingle();
-    if (existente) return rowToMunicipio(existente);
-    // Si no, lo "activamos" copiando datos del catálogo oficial.
-    const { data: oficial } = await this.svc
-      .from("ref_municipios")
-      .select("ine_code, nombre, provincia, cp_principal")
-      .eq("ine_code", ineCode)
-      .maybeSingle();
-    if (!oficial) throw new Error(`Municipio oficial no encontrado: ${ineCode}`);
-    const { data: creado } = await this.svc
-      .from("municipalities")
-      .insert({
-        slug: slugify(oficial.nombre),
-        nombre: oficial.nombre,
-        provincia: oficial.provincia,
-        ine_code: oficial.ine_code,
-        cp: oficial.cp_principal ?? null,
-        poblacion_base: 0,
-        objetivo_nuevos: 0,
-        matricula_escolar: 0,
-        umbral_escolar: 0,
-        riesgo_despoblacion: "medio",
-      })
-      .select()
-      .single();
-    return rowToMunicipio(creado);
   }
 
   async getViviendas(): Promise<Vivienda[]> {

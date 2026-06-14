@@ -21,6 +21,13 @@ export async function crearHogarAction(_prev: unknown, formData: FormData) {
   }
   const v = parsed.data;
   const session = await getSession();
+  // El municipio destino se elige del catálogo oficial (INE). Se "activa" en la
+  // lista operativa si aún no existía; un caso puede entrar sin municipio.
+  let municipioDestinoId: string | null = null;
+  if (v.municipioDestinoIne) {
+    const muni = await getRepo().asegurarMunicipioPorIne(v.municipioDestinoIne);
+    municipioDestinoId = muni.id;
+  }
   const senales: Record<CategoriaSenal, EstadoSenal> = {
     empleo_pareja: v.empleo_pareja,
     escolarizacion: v.escolarizacion,
@@ -42,7 +49,7 @@ export async function crearHogarAction(_prev: unknown, formData: FormData) {
     consentVersion: "v1",
     numAdultos: v.numAdultos,
     numMenores: v.numMenores,
-    municipioDestinoId: v.municipioDestinoId ? v.municipioDestinoId : null,
+    municipioDestinoId,
     canal: v.canal,
     empresaId: v.empresaId || null,
     senales,
@@ -101,10 +108,21 @@ export async function crearEmpresaAction(_prev: unknown, formData: FormData) {
   }
   const v = parsed.data;
   const esTractora = raw.esTractora === "true" || raw.esTractora === "on";
-  await getRepo().crearEmpresa({
+  const repo = getRepo();
+  // El municipio se elige del catálogo oficial (código INE). Se "activa" en la
+  // lista operativa si no existía aún, y la empresa hereda su CP.
+  const ine = typeof raw.municipioIne === "string" ? raw.municipioIne.trim() : "";
+  let municipioId: string | null = null;
+  let cp: string | null = typeof raw.cp === "string" && raw.cp ? raw.cp : null;
+  if (ine) {
+    const muni = await repo.asegurarMunicipioPorIne(ine);
+    municipioId = muni.id;
+    cp = muni.cp ?? cp;
+  }
+  await repo.crearEmpresa({
     nombre: v.nombre,
-    municipioId: v.municipioId || null,
-    cp: typeof raw.cp === "string" && raw.cp ? raw.cp : null,
+    municipioId,
+    cp,
     sector: v.sector,
     vacantes: v.vacantes,
     esTractora,

@@ -7,8 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NuevoHogarPage() {
   const repo = getRepo();
-  const [muniRaw, empRaw] = await Promise.all([repo.getMunicipios(), repo.getEmpresas()]);
-  const municipios = muniRaw.map((m) => ({ id: m.id, nombre: m.nombre }));
+  const [oficiales, empRaw] = await Promise.all([repo.getMunicipiosOficiales(), repo.getEmpresas()]);
   const empresas = empRaw.map((e) => ({ id: e.id, nombre: e.nombre }));
 
   return (
@@ -20,7 +19,7 @@ export default async function NuevoHogarPage() {
           subtitle="Alta rápida del hogar: solo lo imprescindible. El caso se abre en «Interesado» y se trabaja desde el tablero."
         />
       </div>
-      <NewHouseholdForm municipios={municipios} empresas={empresas} />
+      <NewHouseholdForm municipios={oficiales} empresas={empresas} />
     </div>
   );
 }

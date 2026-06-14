@@ -8,7 +8,11 @@ export const dynamic = "force-dynamic";
 
 export default async function EmpresasPage() {
   const repo = getRepo();
-  const [empresas, municipios] = await Promise.all([repo.getEmpresas(), repo.getMunicipios()]);
+  const [empresas, municipios, oficiales] = await Promise.all([
+    repo.getEmpresas(),
+    repo.getMunicipios(),
+    repo.getMunicipiosOficiales(),
+  ]);
   const muniName = (id: string) => municipios.find((m) => m.id === id)?.nombre ?? "—";
 
   return (
@@ -50,7 +54,7 @@ export default async function EmpresasPage() {
         <Card>
           <CardHeader><CardTitle>Añadir empresa</CardTitle></CardHeader>
           <CardContent>
-            <NewEmpresaForm municipios={municipios.map((m) => ({ id: m.id, nombre: m.nombre, cp: m.cp }))} />
+            <NewEmpresaForm municipios={oficiales} />
           </CardContent>
         </Card>
       </div>

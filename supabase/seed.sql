@@ -4,11 +4,11 @@
 --  Hogares y casos se crean desde la app una vez autenticado el técnico.
 -- ============================================================
 
-insert into municipalities (slug, nombre, provincia, poblacion_base, objetivo_nuevos, matricula_escolar, umbral_escolar, riesgo_despoblacion, cp)
+insert into municipalities (slug, nombre, provincia, poblacion_base, objetivo_nuevos, matricula_escolar, umbral_escolar, riesgo_despoblacion, cp, ine_code)
 values
-  ('sanguesa', 'Sangüesa', 'Navarra', 5040, 60, 182, 150, 'medio',   '31400'),
-  ('lumbier',  'Lumbier',  'Navarra', 1410, 30,  96, 105, 'alto',    '31440'),
-  ('aibar',    'Aibar',    'Navarra',  790, 18,  41,  45, 'critico', '31479');
+  ('sanguesa', 'Sangüesa', 'Navarra', 5040, 60, 182, 150, 'medio',   '31400', '31216'),
+  ('lumbier',  'Lumbier',  'Navarra', 1410, 30,  96, 105, 'alto',    '31440', '31159'),
+  ('aibar',    'Aibar',    'Navarra',  790, 18,  41,  45, 'critico', '31460', '31009');
 
 insert into companies (municipality_id, nombre, sector, vacantes, es_tractora, cp)
 select id, 'Conservas del Pirineo', 'Agroalimentario', 18, true,  cp from municipalities where slug='sanguesa'

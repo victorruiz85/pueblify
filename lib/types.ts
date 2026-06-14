@@ -154,6 +154,16 @@ export interface Municipio {
   umbralEscolar: number; // mínimo de alumnos para mantener la escuela
   riesgoDespoblacion: "critico" | "alto" | "medio" | "bajo";
   cp?: string; // código postal (del catálogo)
+  ineCode?: string; // código INE de 5 dígitos (enlace al catálogo oficial)
+}
+
+// Municipio del catálogo OFICIAL (solo lectura). Alimenta la cascada
+// provincia → municipio → CP. No es una entidad operativa de Pueblify.
+export interface MunicipioOficial {
+  ineCode: string;
+  nombre: string;
+  provincia: string;
+  cp: string;
 }
 
 // Hitos del caso: cada uno guarda la fecha en la que se marca (o null)

@@ -46,6 +46,7 @@ export const municipios: Municipio[] = [
     umbralEscolar: 150,
     riesgoDespoblacion: "medio",
     cp: "31400",
+    ineCode: "31216",
   },
   {
     id: "m2",
@@ -58,6 +59,7 @@ export const municipios: Municipio[] = [
     umbralEscolar: 105,
     riesgoDespoblacion: "alto",
     cp: "31440",
+    ineCode: "31159",
   },
   {
     id: "m3",
@@ -69,7 +71,8 @@ export const municipios: Municipio[] = [
     matriculaEscolar: 41,
     umbralEscolar: 45,
     riesgoDespoblacion: "critico",
-    cp: "31479",
+    cp: "31460",
+    ineCode: "31009",
   },
 ];
 

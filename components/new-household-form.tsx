@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { crearHogarAction } from "@/lib/actions";
 import { nuevoHogarSchema, type NuevoHogarValues } from "@/lib/validators";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Select } from "@/components/ui";
-import { ETIQUETA_SENAL, type CategoriaSenal } from "@/lib/types";
+import { MunicipioPicker } from "@/components/municipio-picker";
+import { ETIQUETA_SENAL, type CategoriaSenal, type MunicipioOficial } from "@/lib/types";
 
 const SENALES: CategoriaSenal[] = [
   "empleo_pareja",
@@ -22,13 +23,14 @@ export function NewHouseholdForm({
   municipios,
   empresas,
 }: {
-  municipios: { id: string; nombre: string }[];
+  municipios: MunicipioOficial[];
   empresas: { id: string; nombre: string }[];
 }) {
   const [enviando, setEnviando] = useState(false);
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<NuevoHogarValues>({
     resolver: zodResolver(nuevoHogarSchema),
@@ -37,6 +39,7 @@ export function NewHouseholdForm({
       numMenores: 0,
       origen: "exodo_urbano",
       canal: "gal",
+      municipioDestinoIne: "",
       vinculosPrevios: false,
       empleo_pareja: "no_aplica",
       escolarizacion: "no_aplica",
@@ -116,26 +119,25 @@ export function NewHouseholdForm({
       <Card>
         <CardHeader><CardTitle>Destino y canal</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Municipio destino</Label>
-              <Select {...register("municipioDestinoId")}>
-                <option value="">— Sin asignar (decidir después) —</option>
-                {municipios.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label>Canal de entrada</Label>
-              <Select {...register("canal")}>
-                <option value="gal">Grupo LEADER / GAL</option>
-                <option value="empresa">Empresa tractora</option>
-                <option value="ayuntamiento">Ayuntamiento</option>
-                <option value="web">Web</option>
-                <option value="evento">Evento</option>
-              </Select>
-            </div>
+          <div>
+            <Label>Municipio destino</Label>
+            <MunicipioPicker
+              municipios={municipios}
+              permitirVacio
+              etiquetaVacio="— Sin asignar (decidir después) —"
+              onChange={(sel) => setValue("municipioDestinoIne", sel?.ineCode ?? "")}
+            />
+            <p className="mt-1 text-xs text-muted">Se elige del listado oficial de Navarra; el CP se asigna solo.</p>
+          </div>
+          <div>
+            <Label>Canal de entrada</Label>
+            <Select {...register("canal")}>
+              <option value="gal">Grupo LEADER / GAL</option>
+              <option value="empresa">Empresa tractora</option>
+              <option value="ayuntamiento">Ayuntamiento</option>
+              <option value="web">Web</option>
+              <option value="evento">Evento</option>
+            </Select>
           </div>
           <div>
             <Label>Empresa vinculada (opcional)</Label>

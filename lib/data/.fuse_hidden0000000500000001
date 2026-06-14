@@ -95,7 +95,7 @@ export class MemoryRepo implements Repo {
     const slug = oficial.nombre
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
     const municipio: Municipio = {

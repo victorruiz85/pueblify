@@ -14,7 +14,8 @@ export const nuevoHogarSchema = z.object({
   vinculosPrevios: z.coerce.boolean().default(false),
   // El municipio destino es OPCIONAL: un caso puede entrar sin municipio asignado
   // (p. ej. interés inicial sin destino decidido) y asignarse más tarde.
-  municipioDestinoId: z.string().optional(),
+  // Se elige del catálogo oficial (código INE); se resuelve a municipio operativo.
+  municipioDestinoIne: z.string().optional(),
   empresaId: z.string().optional(),
   canal: z.enum(["web", "ayuntamiento", "empresa", "gal", "evento"]),
   // Señales de arraigo
