@@ -62,29 +62,41 @@ export function MunicipioPicker({
     onChange?.(m ? { ineCode: m.ineCode, nombre: m.nombre, provincia: m.provincia, cp: m.cp } : null);
   };
 
+  const seleccionado = municipios.find((m) => m.ineCode === ineCode) ?? null;
+
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <div>
-        <Label>Provincia</Label>
-        <Select value={provincia} onChange={onProvincia}>
-          {provincias.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </Select>
+    <div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <Label>Provincia</Label>
+          <Select value={provincia} onChange={onProvincia}>
+            {provincias.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label>Municipio</Label>
+          <Select value={ineCode} onChange={onMunicipio}>
+            {permitirVacio && <option value="">{etiquetaVacio}</option>}
+            {municipiosProvincia.map((m) => (
+              <option key={m.ineCode} value={m.ineCode}>{m.nombre}</option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label>Código postal</Label>
+          <Input value={cp} readOnly placeholder="— (lo pone el municipio)" />
+        </div>
       </div>
-      <div>
-        <Label>Municipio</Label>
-        <Select value={ineCode} onChange={onMunicipio}>
-          {permitirVacio && <option value="">{etiquetaVacio}</option>}
-          {municipiosProvincia.map((m) => (
-            <option key={m.ineCode} value={m.ineCode}>{m.nombre}</option>
-          ))}
-        </Select>
-      </div>
-      <div>
-        <Label>Código postal</Label>
-        <Input value={cp} readOnly placeholder="— (lo pone el municipio)" />
-      </div>
+      {seleccionado && (
+        <p className="mt-2 text-xs text-muted">
+          {seleccionado.poblacion.toLocaleString("es-ES")} hab. ·{" "}
+          {seleccionado.colegios && seleccionado.colegios > 0
+            ? `🏫 ${seleccionado.colegios} centro${seleccionado.colegios > 1 ? "s" : ""} (${seleccionado.etapasColegio})`
+            : "🏫 sin centro educativo en el municipio"}
+        </p>
+      )}
       <input type="hidden" name={nameIne} value={ineCode} />
       <input type="hidden" name={nameCp} value={cp} />
     </div>

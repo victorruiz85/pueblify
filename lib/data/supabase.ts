@@ -162,17 +162,42 @@ export class SupabaseRepo implements Repo {
   }
 
   async getMunicipiosOficiales(): Promise<MunicipioOficial[]> {
-    const { data } = await this.pub
-      .from("ref_municipios")
-      .select("ine_code, nombre, provincia, cp_principal")
-      .eq("provincia", "Navarra")
-      .order("nombre");
-    return (data ?? []).map((m: any) => ({
-      ineCode: m.ine_code,
-      nombre: m.nombre,
-      provincia: m.provincia,
-      cp: m.cp_principal ?? "",
-    }));
+    const [{ data }, { data: centros }] = await Promise.all([
+      this.pub
+        .from("ref_municipios")
+        .select("ine_code, nombre, provincia, cp_principal, poblacion")
+        .eq("provincia", "Soria")
+        .order("nombre"),
+      this.pub.from("ref_centros").select("ine_code, etapas"),
+    ]);
+    // Recuento de centros y resumen de etapas por municipio.
+    const porMuni = new Map<string, string[]>();
+    (centros ?? []).forEach((c: any) => {
+      if (!porMuni.has(c.ine_code)) porMuni.set(c.ine_code, []);
+      porMuni.get(c.ine_code)!.push(c.etapas ?? "");
+    });
+    const resumen = (etapas: string[]): string => {
+      const has = (re: RegExp) => etapas.some((e) => re.test(e));
+      const tags: string[] = [];
+      if (has(/Infantil/i)) tags.push("Infantil");
+      if (has(/Primaria/i)) tags.push("Primaria");
+      if (has(/ESO|Bachillerato|Secundaria/i)) tags.push("ESO/Bach");
+      if (has(/FP|Formaci/i)) tags.push("FP");
+      if (tags.length === 0) tags.push("Otras enseñanzas");
+      return tags.join(" · ");
+    };
+    return (data ?? []).map((m: any) => {
+      const lista = porMuni.get(m.ine_code) ?? [];
+      return {
+        ineCode: m.ine_code,
+        nombre: m.nombre,
+        provincia: m.provincia,
+        cp: m.cp_principal ?? "",
+        poblacion: m.poblacion ?? 0,
+        colegios: lista.length,
+        etapasColegio: lista.length ? resumen(lista) : "",
+      };
+    });
   }
 
   async asegurarMunicipioPorIne(ineCode: string): Promise<Municipio> {
@@ -186,7 +211,7 @@ export class SupabaseRepo implements Repo {
     // Si no, lo "activamos" copiando datos del catálogo oficial.
     const { data: oficial } = await this.svc
       .from("ref_municipios")
-      .select("ine_code, nombre, provincia, cp_principal")
+      .select("ine_code, nombre, provincia, cp_principal, poblacion")
       .eq("ine_code", ineCode)
       .maybeSingle();
     if (!oficial) throw new Error(`Municipio oficial no encontrado: ${ineCode}`);
@@ -198,7 +223,7 @@ export class SupabaseRepo implements Repo {
         provincia: oficial.provincia,
         ine_code: oficial.ine_code,
         cp: oficial.cp_principal ?? null,
-        poblacion_base: 0,
+        poblacion_base: oficial.poblacion ?? 0,
         objetivo_nuevos: 0,
         matricula_escolar: 0,
         umbral_escolar: 0,

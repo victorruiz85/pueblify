@@ -57,7 +57,7 @@ export interface Repo {
   getHogar(id: string): Promise<Hogar | null>;
   getMunicipios(): Promise<Municipio[]>;
   getMunicipio(id: string): Promise<Municipio | null>;
-  // Catálogo oficial (Navarra) para la cascada provincia → municipio → CP.
+  // Catálogo oficial (Soria) para la cascada provincia → municipio → CP.
   getMunicipiosOficiales(): Promise<MunicipioOficial[]>;
   // Get-or-create: localiza el municipio operativo por código INE; si no existe,
   // lo "activa" copiando nombre/provincia/CP del catálogo oficial (objetivos a 0).

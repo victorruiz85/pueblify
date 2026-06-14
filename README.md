@@ -23,8 +23,8 @@ público, motor de matching, doble CRM).
 
 ## Arrancar (sin configurar nada)
 
-El MVP trae un **almacén en memoria sembrado con el piloto** (comarca de Sangüesa,
-empresa tractora *Conservas del Pirineo*, 16 hogares por las 4 columnas). No necesitas
+El MVP trae un **almacén en memoria sembrado con el piloto** (Comarca del Moncayo, Soria:
+Ólvega, Ágreda y Borobia; empresa tractora *Cárnicas del Moncayo*, 16 hogares por las columnas). No necesitas
 Supabase para verlo funcionar:
 
 ```bash

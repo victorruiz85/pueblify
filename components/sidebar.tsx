@@ -58,7 +58,7 @@ export function Sidebar({
           </div>
         )}
         <div className="mb-2 rounded-lg bg-earth-100 px-3 py-2 text-[11px] leading-snug text-[#7a6536]">
-          <strong>Piloto:</strong> GAL Zona Media · Comarca de Sangüesa
+          <strong>Piloto:</strong> GAL PROYNERSO · Comarca del Moncayo (Soria)
         </div>
         <div className="flex items-center justify-between rounded-lg border border-[#e3e7e3] px-3 py-2">
           <div className="min-w-0">

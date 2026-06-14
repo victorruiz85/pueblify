@@ -24,7 +24,7 @@ import type {
   TareaCaso,
   Vivienda,
 } from "@/lib/types";
-import { NAVARRA_MUNICIPIOS } from "./navarra";
+import { SORIA_MUNICIPIOS } from "./soria";
 import type { NuevaEmpresa, NuevaTarea, NuevoHogarInput, Repo } from "./repo";
 
 interface DB {
@@ -84,13 +84,13 @@ export class MemoryRepo implements Repo {
     return db().municipios.find((m) => m.id === id) ?? null;
   }
   async getMunicipiosOficiales(): Promise<MunicipioOficial[]> {
-    return NAVARRA_MUNICIPIOS;
+    return SORIA_MUNICIPIOS;
   }
   async asegurarMunicipioPorIne(ineCode: string): Promise<Municipio> {
     const data = db();
     const existente = data.municipios.find((m) => m.ineCode === ineCode);
     if (existente) return existente;
-    const oficial = NAVARRA_MUNICIPIOS.find((o) => o.ineCode === ineCode);
+    const oficial = SORIA_MUNICIPIOS.find((o) => o.ineCode === ineCode);
     if (!oficial) throw new Error(`Municipio oficial no encontrado: ${ineCode}`);
     const slug = oficial.nombre
       .toLowerCase()
@@ -103,7 +103,7 @@ export class MemoryRepo implements Repo {
       slug,
       nombre: oficial.nombre,
       provincia: oficial.provincia,
-      poblacionBase: 0,
+      poblacionBase: oficial.poblacion ?? 0,
       objetivoNuevos: 0,
       matriculaEscolar: 0,
       umbralEscolar: 0,

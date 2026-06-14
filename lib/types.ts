@@ -164,6 +164,18 @@ export interface MunicipioOficial {
   nombre: string;
   provincia: string;
   cp: string;
+  poblacion: number; // habitantes (padrón INE)
+  colegios?: number; // nº de centros educativos en el municipio
+  etapasColegio?: string; // resumen de etapas (p. ej. "Infantil · Primaria · ESO/Bach")
+}
+
+// Centro educativo del catálogo oficial (Directorio de la Junta de Castilla y León).
+export interface CentroEducativo {
+  codigo: string;
+  nombre: string;
+  ineCode: string; // municipio (código INE)
+  municipio: string;
+  etapas: string;
 }
 
 // Hitos del caso: cada uno guarda la fecha en la que se marca (o null)

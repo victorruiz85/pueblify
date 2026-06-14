@@ -1,7 +1,7 @@
 # Pueblify — Demo navegable (modo en memoria)
 
 Demo interactiva **sin Supabase**: arranca con datos del piloto ya cargados en memoria
-(comarca de Sangüesa, empresa tractora, ~16 hogares por las 4 columnas del tablero).
+(Comarca del Moncayo, Soria; empresa tractora, ~16 hogares por las columnas del tablero).
 Ideal para ver y probar la herramienta de principio a fin.
 
 > Modo demo = no hay variables de Supabase en el entorno. La barra lateral muestra el

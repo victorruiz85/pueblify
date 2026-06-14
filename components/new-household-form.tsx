@@ -127,7 +127,7 @@ export function NewHouseholdForm({
               etiquetaVacio="— Sin asignar (decidir después) —"
               onChange={(sel) => setValue("municipioDestinoIne", sel?.ineCode ?? "")}
             />
-            <p className="mt-1 text-xs text-muted">Se elige del listado oficial de Navarra; el CP se asigna solo.</p>
+            <p className="mt-1 text-xs text-muted">Se elige del listado oficial de Soria; el CP se asigna solo.</p>
           </div>
           <div>
             <Label>Canal de entrada</Label>
